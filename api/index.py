@@ -10,10 +10,16 @@ app = FastAPI()
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
 
-# --- Логика Бота ---
+# --- БЕЗОПАСНОСТЬ ---
+# Формируем секретный путь. Теперь URL будет выглядеть так:
+# https://ваш-проект.vercel.app/api/webhook/lkh45lk54lddksn
+WEBHOOK_PATH = f"/api/webhook/{settings.WEBHOOK_SECRET}"
+
+# --- ЛОГИКА БОТА ---
 @dp.message(F.command == "start")
 async def cmd_start(message: types.Message):
     # Ссылка на Web App (на Vercel)
+    # Vercel раздает статику из папки public, поэтому index.html доступен по корню или по имени
     web_app_url = f"{settings.BASE_URL}/index.html"
     
     kb = types.ReplyKeyboardMarkup(
@@ -24,23 +30,32 @@ async def cmd_start(message: types.Message):
 
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: types.Message):
-    # Получаем JSON от Web App и отправляем в 1С
-    data = json.loads(message.web_app_data.data)
-    await message.answer("⏳ Данные получены, отправляю в 1С...")
-    
-    # Интеграция с 1С
-    result = await send_to_1c(data)
-    
-    if result.get("success"):
-        await message.answer(f"✅ Документ создан! Номер: {result.get('doc_number', 'NEW')}")
-    else:
-        await message.answer(f"❌ Ошибка 1С: {result.get('error', 'Unknown')}")
+    # Получаем JSON от Web App
+    try:
+        data = json.loads(message.web_app_data.data)
+        await message.answer("⏳ Данные получены, отправляю в 1С...")
+        
+        # Интеграция с 1С
+        result = await send_to_1c(data)
+        
+        if result.get("success"):
+            # Если 1С вернула успех
+            doc_num = result.get('doc_number', 'б/н')
+            await message.answer(f"✅ Документ создан в 1С!\nНомер: {doc_num}")
+        else:
+            # Если ошибка (или 1С недоступна)
+            err = result.get('error', 'Неизвестная ошибка')
+            await message.answer(f"❌ Ошибка 1С: {err}")
+            
+    except Exception as e:
+        await message.answer(f"Ошибка чтения данных: {e}")
 
-# --- API Эндпоинты ---
+# --- API ЭНДПОИНТЫ ---
 
-@app.post("/api/webhook")
+# 1. ЗАЩИЩЕННЫЙ ВЕБХУК
+# Telegram будет стучаться именно сюда. Посторонние этот адрес не знают.
+@app.post(WEBHOOK_PATH)
 async def telegram_webhook(request: Request):
-    """Принимает обновления от Telegram"""
     try:
         data = await request.json()
         update = types.Update(**data)
@@ -49,16 +64,23 @@ async def telegram_webhook(request: Request):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# 2. СКАНЕР (Фронтенд шлет сюда фото)
 @app.post("/api/scan")
 async def scan_endpoint(file: UploadFile = File(...)):
-    """Принимает фото с фронтенда и шлет в Gemini"""
     content = await file.read()
     result = await recognize_invoice(content)
     return result
 
-# Эндпоинт для установки вебхука (запустить один раз вручную в браузере)
+# 3. УСТАНОВКА ВЕБХУКА (Технический эндпоинт)
+# Вызовите его один раз в браузере после деплоя, чтобы сказать Телеграму новый адрес
 @app.get("/api/set_webhook")
 async def set_webhook():
-    webhook_url = f"{settings.BASE_URL}/api/webhook"
+    webhook_url = f"{settings.BASE_URL}{WEBHOOK_PATH}"
+    
+    # Метод API Telegram: setWebhook
     await bot.set_webhook(webhook_url)
-    return {"webhook_url": webhook_url, "status": "set"}
+    
+    return {
+        "status": "webhook set successfully", 
+        "url": webhook_url
+    }
