@@ -70,7 +70,7 @@ async def telegram_webhook(request: Request):
 @app.post("/api/scan")
 async def scan_endpoint(file: UploadFile = File(...)):
     content = await file.read()
-    result = await recognize_invoice(content)
+    result = await recognize_invoice(content, file.content_type)
     return result
 
 # 3. УСТАНОВКА ВЕБХУКА (Технический эндпоинт)

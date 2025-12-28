@@ -13,7 +13,7 @@ model = genai.GenerativeModel(
     }
 )
 
-async def recognize_invoice(image_bytes: bytes) -> dict:
+async def recognize_invoice(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
     prompt = """
     Проанализируй изображение накладной (УПД, ТОРГ-12).
     Извлеки данные в JSON формате:
@@ -33,11 +33,15 @@ async def recognize_invoice(image_bytes: bytes) -> dict:
     }
     """
     
+    if not mime_type:
+        mime_type = "image/jpeg"
+
     try:
-        response = model.generate_content([
-            {'mime_type': 'image/jpeg', 'data': image_bytes},
+        response = await model.generate_content_async([
+            {'mime_type': mime_type, 'data': image_bytes},
             prompt
         ])
         return json.loads(response.text)
     except Exception as e:
+        print(f"OCR Error: {e}")
         return {"error": str(e), "Items": []}

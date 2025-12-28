@@ -28,6 +28,17 @@ document.getElementById('file-input').addEventListener('change', async (e) => {
         // Запрос к нашему API на Vercel
         const response = await fetch('/api/scan', { method: 'POST', body: formData });
         const result = await response.json();
+        console.log("API Response:", result); // Лог в консоль браузера
+
+        // Скрываем лоадер сразу после получения ответа
+        document.getElementById('loader').classList.add('hidden');
+
+        // Если пришла ошибка с сервера
+        if (result.error) {
+            tg.showAlert("Ошибка AI: " + result.error);
+            document.getElementById('scan-section').querySelector('button').classList.remove('hidden');
+            return;
+        }
 
         if (result.Items) {
             document.getElementById('loader').classList.add('hidden');
