@@ -5,7 +5,13 @@ load_dotenv()
 
 class Config:
     BOT_TOKEN = os.getenv("BOT_TOKEN")
+    if not BOT_TOKEN:
+        print("❌ КРИТИЧЕСКАЯ ОШИБКА: BOT_TOKEN не найден в .env файле! Бот не сможет запуститься.")
+
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    if not GOOGLE_API_KEY:
+        print("⚠️ ПРЕДУПРЕЖДЕНИЕ: GOOGLE_API_KEY не найден в .env файле!")
+
     WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "test-secret")
     
     # Vercel отдает URL без протокола, добавляем https://

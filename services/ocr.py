@@ -1,30 +1,11 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import json
 import asyncio
 from core.config import settings
 
 # Настройка API
-genai.configure(api_key=settings.GOOGLE_API_KEY)
-
-_active_model = None
-
-def get_model():
-    """
-    Автоматически выбирает доступную модель, чтобы не гадать названия.
-    """
-    global _active_model
-    if _active_model:
-        return _active_model
-
-    # ОПТИМИЗАЦИЯ: Жестко задаем модель, чтобы не тратить время на опрос API при каждом запуске
-    target_name = "models/gemini-1.5-flash"
-
-    print(f"✅ Выбрана модель: {target_name}")
-    _active_model = genai.GenerativeModel(
-        model_name=target_name,
-        generation_config={"temperature": 0.1}
-    )
-    return _active_model
+client = genai.Client(api_key=settings.GOOGLE_API_KEY)
 
 async def recognize_invoice(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
     prompt = """
@@ -55,14 +36,21 @@ async def recognize_invoice(image_bytes: bytes, mime_type: str = "image/jpeg") -
     if not mime_type:
         mime_type = "image/jpeg"
 
+    # Конфигурация генерации
+    config = types.GenerateContentConfig(
+        temperature=0.1
+    )
+
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            model_instance = get_model()
-            response = await model_instance.generate_content_async([
-                {'mime_type': mime_type, 'data': image_bytes},
-                prompt
-            ])
+            response = await client.aio.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=[
+                    types.Content(parts=[types.Part.from_bytes(data=image_bytes, mime_type=mime_type), types.Part.from_text(text=prompt)])
+                ],
+                config=config
+            )
             
             text = response.text
             print(f"Gemini Raw Response: {text}") # Лог в терминал для отладки
@@ -83,13 +71,4 @@ async def recognize_invoice(image_bytes: bytes, mime_type: str = "image/jpeg") -
                     continue
 
             # ЕСЛИ ОШИБКА 404 - ВЫВОДИМ СПИСОК ДОСТУПНЫХ МОДЕЛЕЙ В ЛОГ
-            if "404" in str(e) or "not found" in str(e).lower():
-                print("⚠️ Модель не найдена. Список доступных моделей:")
-                try:
-                    for m in genai.list_models():
-                        if 'generateContent' in m.supported_generation_methods:
-                            print(f" - {m.name}")
-                except Exception as list_err:
-                    print(f"Не удалось получить список моделей: {list_err}")
-                    
             return {"error": str(e), "Items": []}
