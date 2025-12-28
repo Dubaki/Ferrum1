@@ -1,5 +1,7 @@
 from fastapi import FastAPI, Request, UploadFile, File
+from fastapi.staticfiles import StaticFiles
 from aiogram import Bot, Dispatcher, types, F
+import os
 from aiogram.types import WebAppInfo
 from services.ocr import recognize_invoice
 from services.onec import send_to_1c
@@ -84,3 +86,8 @@ async def set_webhook():
         "status": "webhook set successfully", 
         "url": webhook_url
     }
+
+# --- ЛОКАЛЬНЫЙ ЗАПУСК ---
+# Если папка public существует, раздаем её содержимое (для локальных тестов)
+if os.path.exists("public"):
+    app.mount("/", StaticFiles(directory="public", html=True), name="static")
