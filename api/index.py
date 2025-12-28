@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from aiogram import Bot, Dispatcher, types, F
 import os
 from aiogram.types import WebAppInfo
@@ -11,6 +12,15 @@ import json
 app = FastAPI()
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
+
+# Настройка CORS (разрешаем запросы с любого источника)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- БЕЗОПАСНОСТЬ ---
 # Формируем секретный путь. Теперь URL будет выглядеть так:
@@ -68,6 +78,7 @@ async def telegram_webhook(request: Request):
 
 # 2. СКАНЕР (Фронтенд шлет сюда фото)
 @app.post("/api/scan")
+@app.post("/scan") # Запасной маршрут, если Vercel обрежет /api
 async def scan_endpoint(file: UploadFile = File(...)):
     content = await file.read()
     result = await recognize_invoice(content, file.content_type)
