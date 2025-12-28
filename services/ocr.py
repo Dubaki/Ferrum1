@@ -16,40 +16,8 @@ def get_model():
     if _active_model:
         return _active_model
 
-    target_name = "models/gemini-1.5-flash" # Запасной вариант
-    try:
-        print("🔍 Запрашиваем у Google список доступных моделей...")
-        # Получаем список моделей, которые умеют генерировать контент
-        models = [m for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        names = [m.name for m in models]
-        print(f"📋 Доступно: {names}")
-
-        # ПРИОРИТЕТ: Ищем легкие модели (Flash), у них выше лимиты на бесплатном тарифе
-        priority_list = [
-            "models/gemini-1.5-flash",
-            "models/gemini-1.5-flash-001",
-            "models/gemini-1.5-flash-002",
-            "models/gemini-1.5-flash-8b",
-        ]
-
-        # Проверяем по списку приоритетов
-        for p in priority_list:
-            if p in names:
-                target_name = p
-                break
-        else:
-            # Если Flash не нашли, ищем любую с 'flash' в названии
-            for n in names:
-                if "flash" in n.lower():
-                    target_name = n
-                    break
-            else:
-                # Если совсем ничего нет, берем последнюю (как крайняя мера)
-                if models:
-                    target_name = models[-1].name
-            
-    except Exception as e:
-        print(f"⚠️ Ошибка получения списка моделей: {e}")
+    # ОПТИМИЗАЦИЯ: Жестко задаем модель, чтобы не тратить время на опрос API при каждом запуске
+    target_name = "models/gemini-1.5-flash"
 
     print(f"✅ Выбрана модель: {target_name}")
     _active_model = genai.GenerativeModel(
@@ -109,7 +77,7 @@ async def recognize_invoice(image_bytes: bytes, mime_type: str = "image/jpeg") -
             # ЕСЛИ ОШИБКА 429 (Quota) - ЖДЕМ И ПОВТОРЯЕМ
             if "429" in str(e) or "quota" in str(e).lower():
                 if attempt < max_retries - 1:
-                    wait_time = 10 * (attempt + 1)
+                    wait_time = 2 # Уменьшаем время ожидания, чтобы уложиться в лимит Vercel
                     print(f"⏳ Превышен лимит квот. Ждем {wait_time} сек...")
                     await asyncio.sleep(wait_time)
                     continue
