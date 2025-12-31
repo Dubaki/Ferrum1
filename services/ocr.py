@@ -10,13 +10,18 @@ from core.config import settings
 client = AsyncOpenAI(
     api_key=settings.OPENROUTER_API_KEY,
     base_url="https://openrouter.ai/api/v1",
+    timeout=45.0, # Увеличиваем тайм-аут (Vercel может ждать дольше)
+    max_retries=1, # Один повтор на уровне библиотеки
 )
 
-# ВЫБОР МОДЕЛИ
-# Qwen-2.5-VL-72B - мощнейшая модель для зрения.
-# :free в конце означает, что мы пробуем бесплатный шлюз. 
-# Если будет глючить, уберите ":free", это будет стоить копейки ($0.00... за запрос).
-MODEL_ID = "google/gemini-2.0-flash-exp:free"
+# СПИСОК МОДЕЛЕЙ (Failover)
+# Если первая модель недоступна или выдает ошибку, бот попробует следующую.
+MODELS = [
+    "google/gemini-2.0-flash-exp:free",
+    "google/gemini-2.0-flash-lite-preview-02-05:free",
+    "google/gemini-2.0-pro-exp-02-05:free",
+    "qwen/qwen-2.5-vl-72b-instruct:free"
+]
 
 def resize_image(image_bytes: bytes, max_size=(1024, 1024)) -> bytes:
     """Сжимает изображение до разумных размеров перед отправкой в AI"""
@@ -37,8 +42,6 @@ def resize_image(image_bytes: bytes, max_size=(1024, 1024)) -> bytes:
         return image_bytes
 
 async def recognize_invoice(image_bytes: bytes) -> dict:
-    print(f"DEBUG: Запуск OCR через OpenRouter. Модель: {MODEL_ID}")
-    
     try:
         # 1. Сжимаем и кодируем картинку в Base64
         optimized_bytes = resize_image(image_bytes)
@@ -63,46 +66,59 @@ async def recognize_invoice(image_bytes: bytes) -> dict:
         }
         """
 
-        # 2. Отправляем запрос
-        response = await client.chat.completions.create(
-            model=MODEL_ID,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text", 
-                            "text": prompt
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            },
-                        },
-                    ],
-                }
-            ],
-            # Эти заголовки требуют правила OpenRouter
-            extra_headers={
-                "HTTP-Referer": "https://telegram-bot.com", 
-                "X-Title": "Invoice Scanner Bot",
-            },
-            temperature=0.1, # Минимальная креативность для точности
-        )
+        last_error = None
 
-        # 3. Получаем ответ
-        content = response.choices[0].message.content
-        print("DEBUG: Ответ получен от AI")
+        # 2. Перебираем модели, пока одна не сработает
+        for model_id in MODELS:
+            print(f"DEBUG: Пробуем модель: {model_id}")
+            try:
+                response = await client.chat.completions.create(
+                    model=model_id,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "text", 
+                                    "text": prompt
+                                },
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:image/jpeg;base64,{base64_image}"
+                                    },
+                                },
+                            ],
+                        }
+                    ],
+                    # Эти заголовки требуют правила OpenRouter
+                    extra_headers={
+                        "HTTP-Referer": "https://telegram-bot.com", 
+                        "X-Title": "Invoice Scanner Bot",
+                    },
+                    temperature=0.1, # Минимальная креативность для точности
+                )
+
+                # 3. Получаем ответ
+                content = response.choices[0].message.content
+                print(f"DEBUG: Ответ получен от {model_id}")
+                
+                # 4. Очистка от Markdown
+                cleaned_content = content
+                if "```json" in content:
+                    cleaned_content = content.split("```json")[1].split("```")[0]
+                elif "```" in content:
+                    cleaned_content = content.split("```")[1].split("```")[0]
+                    
+                return json.loads(cleaned_content.strip())
+
+            except Exception as e:
+                print(f"⚠️ Ошибка модели {model_id}: {e}")
+                last_error = e
+                continue # Пробуем следующую модель
         
-        # 4. Очистка от Markdown (иногда модель пишет ```json ... ```)
-        cleaned_content = content
-        if "```json" in content:
-            cleaned_content = content.split("```json")[1].split("```")[0]
-        elif "```" in content:
-            cleaned_content = content.split("```")[1].split("```")[0]
-            
-        return json.loads(cleaned_content.strip())
+        # Если ни одна модель не сработала
+        raise last_error if last_error else Exception("Все модели недоступны")
 
     except Exception as e:
         print(f"CRITICAL ERROR OCR: {e}")
