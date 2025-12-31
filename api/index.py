@@ -1,37 +1,24 @@
 from fastapi import FastAPI, Request, UploadFile, File
-from fastapi.staticfiles import StaticFiles
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles # <-- НОВЫЙ ИМПОРТ
 from aiogram import Bot, Dispatcher, types, F
-import os
 from aiogram.types import WebAppInfo
 from services.ocr import recognize_invoice
 from services.onec import send_to_1c
 from core.config import settings
 import json
+import os
 
 app = FastAPI()
 bot = Bot(token=settings.BOT_TOKEN)
 dp = Dispatcher()
 
-# Настройка CORS (разрешаем запросы с любого источника)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # --- БЕЗОПАСНОСТЬ ---
-# Формируем секретный путь. Теперь URL будет выглядеть так:
-# https://ваш-проект.vercel.app/api/webhook/lkh45lk54lddksn
 WEBHOOK_PATH = f"/api/webhook/{settings.WEBHOOK_SECRET}"
 
 # --- ЛОГИКА БОТА ---
 @dp.message(F.command == "start")
 async def cmd_start(message: types.Message):
-    # Ссылка на Web App (на Vercel)
-    # Vercel раздает статику из папки public, поэтому index.html доступен по корню или по имени
+    # Ссылка на Web App
     web_app_url = f"{settings.BASE_URL}/index.html"
     
     kb = types.ReplyKeyboardMarkup(
@@ -42,20 +29,16 @@ async def cmd_start(message: types.Message):
 
 @dp.message(F.web_app_data)
 async def handle_webapp_data(message: types.Message):
-    # Получаем JSON от Web App
     try:
         data = json.loads(message.web_app_data.data)
         await message.answer("⏳ Данные получены, отправляю в 1С...")
         
-        # Интеграция с 1С
         result = await send_to_1c(data)
         
         if result.get("success"):
-            # Если 1С вернула успех
             doc_num = result.get('doc_number', 'б/н')
             await message.answer(f"✅ Документ создан в 1С!\nНомер: {doc_num}")
         else:
-            # Если ошибка (или 1С недоступна)
             err = result.get('error', 'Неизвестная ошибка')
             await message.answer(f"❌ Ошибка 1С: {err}")
             
@@ -64,8 +47,6 @@ async def handle_webapp_data(message: types.Message):
 
 # --- API ЭНДПОИНТЫ ---
 
-# 1. ЗАЩИЩЕННЫЙ ВЕБХУК
-# Telegram будет стучаться именно сюда. Посторонние этот адрес не знают.
 @app.post(WEBHOOK_PATH)
 async def telegram_webhook(request: Request):
     try:
@@ -76,29 +57,22 @@ async def telegram_webhook(request: Request):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# 2. СКАНЕР (Фронтенд шлет сюда фото)
 @app.post("/api/scan")
-@app.post("/scan") # Запасной маршрут, если Vercel обрежет /api
 async def scan_endpoint(file: UploadFile = File(...)):
     content = await file.read()
-    result = await recognize_invoice(content, file.content_type)
+    # Обращаемся к функции OCR
+    result = await recognize_invoice(content)
     return result
 
-# 3. УСТАНОВКА ВЕБХУКА (Технический эндпоинт)
-# Вызовите его один раз в браузере после деплоя, чтобы сказать Телеграму новый адрес
 @app.get("/api/set_webhook")
 async def set_webhook():
     webhook_url = f"{settings.BASE_URL}{WEBHOOK_PATH}"
-    
-    # Метод API Telegram: setWebhook
     await bot.set_webhook(webhook_url)
-    
-    return {
-        "status": "webhook set successfully", 
-        "url": webhook_url
-    }
+    return {"status": "webhook set successfully", "url": webhook_url}
 
-# --- ЛОКАЛЬНЫЙ ЗАПУСК ---
-# Если папка public существует, раздаем её содержимое (для локальных тестов)
+# --- ПОДКЛЮЧЕНИЕ СТАТИКИ (Frontend) ---
+# ВАЖНО: Этот блок должен быть в самом конце!
+# Он говорит: "Если запрос не попал в API выше, ищи файл в папке public"
+# html=True означает, что при запросе корня "/" будет открываться index.html
 if os.path.exists("public"):
-    app.mount("/", StaticFiles(directory="public", html=True), name="static")
+    app.mount("/", StaticFiles(directory="public", html=True), name="public")

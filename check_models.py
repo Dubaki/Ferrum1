@@ -1,4 +1,4 @@
-import google.generativeai as genai
+from google import genai
 import os
 from dotenv import load_dotenv
 
@@ -9,11 +9,10 @@ api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
     print("❌ Ошибка: GOOGLE_API_KEY не найден в .env")
 else:
-    genai.configure(api_key=api_key)
-    print(f"🔍 Проверяем доступные модели для ключа: {api_key[:5]}...")
+    client = genai.Client(api_key=api_key)
+    print(f"🔍 Проверяем доступные модели...")
     try:
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                print(f"✅ Доступна: {m.name}")
+        for m in client.models.list():
+            print(f"✅ Доступна: {m.name}")
     except Exception as e:
         print(f"❌ Ошибка при получении списка: {e}")

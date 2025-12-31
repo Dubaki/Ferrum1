@@ -1,27 +1,19 @@
 import os
 from dotenv import load_dotenv
 
+# Загружаем переменные из .env файла
 load_dotenv()
 
 class Config:
+    # Telegram
     BOT_TOKEN = os.getenv("BOT_TOKEN")
-    if not BOT_TOKEN:
-        print("❌ КРИТИЧЕСКАЯ ОШИБКА: BOT_TOKEN не найден в .env файле! Бот не сможет запуститься.")
-
-    GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-    if not GOOGLE_API_KEY:
-        print("⚠️ ПРЕДУПРЕЖДЕНИЕ: GOOGLE_API_KEY не найден в .env файле!")
-
-    WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "test-secret")
+    WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "my-secret-token")
+    BASE_URL = os.getenv("VERCEL_URL")
     
-    # Vercel отдает URL без протокола, добавляем https://
-    _vercel_url = os.getenv("VERCEL_URL")
-    if _vercel_url:
-        BASE_URL = f"https://{_vercel_url}" if not _vercel_url.startswith("http") else _vercel_url
-    else:
-        BASE_URL = "https://your-project.vercel.app"
+    # AI (OpenRouter)
+    OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
     
-    # 1C Config
+    # 1C Integration
     ONEC_URL = os.getenv("ONEC_URL")
     ONEC_AUTH_USER = os.getenv("ONEC_AUTH_USER")
     ONEC_AUTH_PASS = os.getenv("ONEC_AUTH_PASS")

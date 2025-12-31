@@ -2,8 +2,9 @@ fastapi
 uvicorn
 python-multipart
 aiogram>=3.0.0
-google-genai
+openai
 pydantic
 python-dotenv
 requests
 aiohttp
+Pillow
