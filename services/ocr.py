@@ -81,8 +81,33 @@ async def recognize_invoice(image_bytes: bytes) -> dict:
             content = content.split("```json")[1].split("```")[0]
         elif "```" in content:
             content = content.split("```")[1].split("```")[0]
-            
-        return json.loads(content.strip())
+
+        # Парсинг JSON
+        result = json.loads(content.strip())
+
+        # Валидация и нормализация данных (защита от некорректных данных AI)
+        if "Items" in result and isinstance(result["Items"], list):
+            validated_items = []
+            for item in result["Items"]:
+                # Нормализуем данные товара
+                normalized_item = {
+                    "ItemArticle": str(item.get("ItemArticle") or item.get("itemArticle") or item.get("article") or ""),
+                    "ItemName": str(item.get("ItemName") or item.get("itemName") or item.get("name") or "Товар"),
+                    "Quantity": max(0.001, float(item.get("Quantity") or item.get("quantity") or item.get("qty") or 1)),
+                    "Price": max(0, float(item.get("Price") or item.get("price") or 0)),
+                }
+                # Вычисляем Total с округлением
+                normalized_item["Total"] = round(normalized_item["Quantity"] * normalized_item["Price"], 2)
+                validated_items.append(normalized_item)
+
+            result["Items"] = validated_items
+
+            # Вычисляем общую сумму, если её нет
+            if "TotalSum" not in result or not result["TotalSum"]:
+                result["TotalSum"] = round(sum(item["Total"] for item in validated_items), 2)
+
+        print(f"DEBUG: Распознано товаров: {len(result.get('Items', []))}")
+        return result
 
     except Exception as e:
         print(f"CRITICAL ERROR OCR: {e}")
