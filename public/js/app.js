@@ -11,6 +11,34 @@ function validateINN(inn) {
     return /^\d{10}$|^\d{12}$/.test(inn.trim());
 }
 
+// Fallback функции для старых версий Telegram
+function showAlert(message) {
+    if (tg.showAlert) {
+        showAlert(message);
+    } else {
+        alert(message);
+    }
+}
+
+function showConfirm(message, callback) {
+    if (tg.showConfirm) {
+        tg.showConfirm(message, callback);
+    } else {
+        const result = confirm(message);
+        callback(result);
+    }
+}
+
+function hapticFeedback(type, style) {
+    if (tg.HapticFeedback) {
+        if (type === 'notification' && tg.HapticFeedback.notificationOccurred) {
+            hapticFeedback('notification',style);
+        } else if (type === 'impact' && tg.HapticFeedback.impactOccurred) {
+            hapticFeedback('impact',style);
+        }
+    }
+}
+
 // Настройка таблицы
 const table = new Tabulator("#grid-table", {
     layout: "fitColumns",
@@ -24,14 +52,16 @@ const table = new Tabulator("#grid-table", {
     ]
 });
 
-// BackButton - возврат к сканированию
-tg.BackButton.onClick(() => {
-    tg.showConfirm("Вернуться к сканированию? Несохраненные изменения будут потеряны.", (confirmed) => {
-        if (confirmed) {
-            resetToScan();
-        }
+// BackButton - возврат к сканированию (если поддерживается)
+if (tg.BackButton && tg.BackButton.isSupported) {
+    tg.BackButton.onClick(() => {
+        showConfirm("Вернуться к сканированию? Несохраненные изменения будут потеряны.", (confirmed) => {
+            if (confirmed) {
+                resetToScan();
+            }
+        });
     });
-});
+}
 
 function resetToScan() {
     documents = [];
@@ -42,7 +72,9 @@ function resetToScan() {
     document.getElementById('image-preview').classList.add('hidden');
     table.clearData();
     tg.MainButton.hide();
-    tg.BackButton.hide();
+    if (tg.BackButton && tg.BackButton.hide) {
+        tg.BackButton.hide();
+    }
     updateDocumentsList();
 }
 
@@ -55,8 +87,8 @@ document.getElementById('file-input').addEventListener('change', async (e) => {
     const MAX_SIZE = 10 * 1024 * 1024;
     for (const file of files) {
         if (file.size > MAX_SIZE) {
-            tg.showAlert(`❌ Файл "${file.name}" слишком большой (максимум 10MB)`);
-            tg.HapticFeedback.notificationOccurred('error');
+            showAlert(`❌ Файл "${file.name}" слишком большой (максимум 10MB)`);
+            hapticFeedback('notification','error');
             return;
         }
     }
@@ -110,21 +142,21 @@ document.getElementById('file-input').addEventListener('change', async (e) => {
                     status: 'ready' // ready, sent, error
                 });
                 processedCount++;
-                tg.HapticFeedback.notificationOccurred('success');
+                hapticFeedback('notification','success');
             } else if (result.error) {
-                tg.showAlert(`❌ Ошибка при обработке "${file.name}":\n${result.error}`);
-                tg.HapticFeedback.notificationOccurred('error');
+                showAlert(`❌ Ошибка при обработке "${file.name}":\n${result.error}`);
+                hapticFeedback('notification','error');
             } else {
-                tg.showAlert(`❌ Товары не найдены в "${file.name}"`);
-                tg.HapticFeedback.notificationOccurred('warning');
+                showAlert(`❌ Товары не найдены в "${file.name}"`);
+                hapticFeedback('notification','warning');
             }
         } catch (err) {
             if (loadingInterval) {
                 clearInterval(loadingInterval);
                 loadingInterval = null;
             }
-            tg.showAlert(`❌ Ошибка сети при обработке "${file.name}": ${err.message}`);
-            tg.HapticFeedback.notificationOccurred('error');
+            showAlert(`❌ Ошибка сети при обработке "${file.name}": ${err.message}`);
+            hapticFeedback('notification','error');
         }
     }
 
@@ -137,10 +169,12 @@ document.getElementById('file-input').addEventListener('change', async (e) => {
         showDocument(0);
         updateDocumentsList();
         document.getElementById('result-section').classList.remove('hidden');
-        tg.BackButton.show();
-        tg.HapticFeedback.notificationOccurred('success');
+        if (tg.BackButton && tg.BackButton.show) {
+            tg.BackButton.show();
+        }
+        hapticFeedback('notification','success');
 
-        tg.showAlert(`✅ Успешно обработано документов: ${processedCount} из ${totalFiles}`);
+        showAlert(`✅ Успешно обработано документов: ${processedCount} из ${totalFiles}`);
     } else {
         // Если ни один документ не обработан
         resetUI();
@@ -220,7 +254,7 @@ function updateDocumentsList() {
 
         docItem.onclick = () => {
             showDocument(index);
-            tg.HapticFeedback.impactOccurred('light');
+            hapticFeedback('impact','light');
         };
 
         listContainer.appendChild(docItem);
@@ -262,28 +296,28 @@ function sendCurrentDocument() {
 
     // Валидация ИНН
     if (!inn) {
-        tg.showAlert("❌ Укажите ИНН поставщика");
-        tg.HapticFeedback.notificationOccurred('error');
+        showAlert("❌ Укажите ИНН поставщика");
+        hapticFeedback('notification','error');
         return;
     }
     if (!validateINN(inn)) {
-        tg.showAlert("❌ Некорректный ИНН\n\nИНН должен содержать 10 или 12 цифр");
-        tg.HapticFeedback.notificationOccurred('error');
+        showAlert("❌ Некорректный ИНН\n\nИНН должен содержать 10 или 12 цифр");
+        hapticFeedback('notification','error');
         return;
     }
 
     // Валидация товаров
     if (items.length === 0) {
-        tg.showAlert("❌ Нет товаров для отправки");
-        tg.HapticFeedback.notificationOccurred('error');
+        showAlert("❌ Нет товаров для отправки");
+        hapticFeedback('notification','error');
         return;
     }
 
     // Проверка на пустые товары
     const hasEmptyItems = items.some(item => !item.ItemName || item.ItemName.trim() === '');
     if (hasEmptyItems) {
-        tg.showAlert("❌ Есть товары без названия");
-        tg.HapticFeedback.notificationOccurred('error');
+        showAlert("❌ Есть товары без названия");
+        hapticFeedback('notification','error');
         return;
     }
 
@@ -301,7 +335,7 @@ function sendCurrentDocument() {
     doc.status = 'sent';
     updateDocumentsList();
 
-    tg.HapticFeedback.impactOccurred('medium');
+    hapticFeedback('impact','medium');
     tg.sendData(JSON.stringify(data));
 }
 
@@ -310,12 +344,12 @@ tg.MainButton.onClick(sendCurrentDocument);
 // Кнопка добавления товара
 document.getElementById('add-item-btn').addEventListener('click', () => {
     table.addRow({ItemArticle: "", ItemName: "", Quantity: 1, Price: 0, Total: 0}, true);
-    tg.HapticFeedback.impactOccurred('light');
+    hapticFeedback('impact','light');
 });
 
 // Кнопка очистки текущего документа
 document.getElementById('clear-btn').addEventListener('click', () => {
-    tg.showConfirm("Удалить текущий документ из списка?", (confirmed) => {
+    showConfirm("Удалить текущий документ из списка?", (confirmed) => {
         if (confirmed) {
             documents.splice(currentDocIndex, 1);
 
@@ -327,7 +361,7 @@ document.getElementById('clear-btn').addEventListener('click', () => {
                 showDocument(newIndex);
             }
 
-            tg.HapticFeedback.notificationOccurred('success');
+            hapticFeedback('notification','success');
         }
     });
 });
