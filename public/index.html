@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Scanner</title>
+    <title>Scanner 1C</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link href="https://unpkg.com/tabulator-tables@5.5.0/dist/css/tabulator_semanticui.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
@@ -13,26 +13,39 @@
         <div id="scan-section">
             <input type="file" id="file-input" accept="image/*" capture="environment" hidden>
             <button class="btn-primary" onclick="document.getElementById('file-input').click()">
-                📷 Сфотографировать накладную
+                📷 Сфотографировать УПД
             </button>
             <div id="loader" class="hidden">
                 <div class="spinner"></div>
-                <p>AI обрабатывает документ...</p>
+                <p>ИИ читает документ...</p>
+                <small>Это может занять 10-20 секунд</small>
             </div>
         </div>
 
         <div id="result-section" class="hidden">
-            <div class="form-row">
-                <input type="text" id="inn" placeholder="ИНН Поставщика">
-            </div>
-            <div class="form-row dates">
-                <input type="text" id="doc_num" placeholder="№ Документа">
-                <input type="text" id="doc_date" placeholder="Дата">
+            <div class="form-group">
+                <label>Поставщик (ИНН)</label>
+                <input type="text" id="inn" placeholder="ИНН">
             </div>
             
+            <div class="form-row dates">
+                <div class="form-group">
+                    <label>Номер</label>
+                    <input type="text" id="doc_num">
+                </div>
+                <div class="form-group">
+                    <label>Дата</label>
+                    <input type="text" id="doc_date">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Итого по документу</label>
+                <input type="number" id="total_sum" style="font-weight: bold; background-color: #e8f5e9;">
+            </div>
+            
+            <h3>Товары</h3>
             <div id="grid-table"></div>
-            <button id="send-btn" class="btn-primary" style="background: #2481cc; margin-top: 10px;">📤 Отправить в 1С</button>
-            <button id="clear-btn" class="btn-primary" style="background: #ff5555; margin-top: 10px;">🗑 Очистить</button>
         </div>
     </div>
 
