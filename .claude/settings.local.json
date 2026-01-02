@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(if [ -f .env ])",
+      "Bash(then echo \"=== .env найден ===\")",
+      "Bash(else echo \".env не найден\")",
+      "Bash(fi)",
+      "Bash(uvicorn api.index:app:*)",
+      "Bash(curl:*)",
+      "Bash(python -m uvicorn:*)"
     ]
   }
 }
