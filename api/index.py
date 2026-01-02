@@ -60,8 +60,12 @@ async def telegram_webhook(request: Request):
 @app.post("/api/scan")
 async def scan_endpoint(file: UploadFile = File(...)):
     content = await file.read()
-    # Обращаемся к функции OCR
-    result = await recognize_invoice(content)
+
+    # Проверяем тип файла
+    is_pdf = file.filename.lower().endswith('.pdf') if file.filename else False
+
+    # Обращаемся к функции OCR (она теперь поддерживает PDF)
+    result = await recognize_invoice(content, is_pdf=is_pdf)
     return result
 
 @app.get("/api/set_webhook")
