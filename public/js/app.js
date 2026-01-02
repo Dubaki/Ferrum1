@@ -141,11 +141,14 @@ document.getElementById('file-input').addEventListener('change', async (e) => {
             }
 
             if (result.Items && result.Items.length > 0) {
+                // Для PDF используем превью из ответа API (первая страница)
+                const docPreview = result.preview || preview;
+
                 // Добавляем документ в массив
                 documents.push({
                     id: Date.now() + i,
                     fileName: file.name,
-                    preview: preview,
+                    preview: docPreview,
                     data: result,
                     status: 'ready' // ready, sent, error
                 });

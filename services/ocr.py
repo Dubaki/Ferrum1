@@ -53,10 +53,20 @@ async def recognize_invoice(file_bytes: bytes, is_pdf: bool = False) -> dict:
                 if page_result.get("Items"):
                     all_items.extend(page_result["Items"])
 
+            # Создаём превью первой страницы для фронтенда
+            first_page = images[0]
+            preview_buffer = io.BytesIO()
+            # Уменьшаем для превью
+            preview_size = (400, 566)  # A4 пропорции
+            first_page.thumbnail(preview_size, Image.Resampling.LANCZOS)
+            first_page.save(preview_buffer, format='JPEG', quality=70)
+            preview_base64 = base64.b64encode(preview_buffer.getvalue()).decode('utf-8')
+
             # Объединяем результаты
             result = doc_info
             result["Items"] = all_items
             result["TotalSum"] = round(sum(item.get("Total", 0) for item in all_items), 2)
+            result["preview"] = f"data:image/jpeg;base64,{preview_base64}"
 
             print(f"DEBUG: Всего распознано товаров: {len(all_items)}")
             return result
