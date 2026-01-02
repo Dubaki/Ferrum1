@@ -9,8 +9,8 @@ client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
 )
 
-# Модель Qwen 2.5 VL - лучшая для таблиц и русского языка
-MODEL_ID = "qwen/qwen-2.5-vl-72b-instruct:free"
+# Модель Google Gemini 2.0 Flash - актуальная модель с vision
+MODEL_ID = "google/gemini-2.0-flash-001"
 
 async def recognize_invoice(image_bytes: bytes) -> dict:
     print(f"DEBUG: Запуск OCR. Модель: {MODEL_ID}")

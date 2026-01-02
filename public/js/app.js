@@ -13,28 +13,36 @@ function validateINN(inn) {
 
 // Fallback функции для старых версий Telegram
 function showAlert(message) {
-    if (tg.showAlert) {
-        showAlert(message);
-    } else {
-        alert(message);
+    try {
+        if (typeof tg.showAlert === 'function') {
+            tg.showAlert(message);
+        } else {
+            throw new Error('showAlert not supported');
+        }
+    } catch (e) {
+        window.alert(message);
     }
 }
 
 function showConfirm(message, callback) {
-    if (tg.showConfirm) {
-        tg.showConfirm(message, callback);
-    } else {
-        const result = confirm(message);
+    try {
+        if (typeof tg.showConfirm === 'function') {
+            tg.showConfirm(message, callback);
+        } else {
+            throw new Error('showConfirm not supported');
+        }
+    } catch (e) {
+        const result = window.confirm(message);
         callback(result);
     }
 }
 
 function hapticFeedback(type, style) {
     if (tg.HapticFeedback) {
-        if (type === 'notification' && tg.HapticFeedback.notificationOccurred) {
-            hapticFeedback('notification',style);
-        } else if (type === 'impact' && tg.HapticFeedback.impactOccurred) {
-            hapticFeedback('impact',style);
+        if (type === 'notification' && typeof tg.HapticFeedback.notificationOccurred === 'function') {
+            tg.HapticFeedback.notificationOccurred(style);
+        } else if (type === 'impact' && typeof tg.HapticFeedback.impactOccurred === 'function') {
+            tg.HapticFeedback.impactOccurred(style);
         }
     }
 }
@@ -174,7 +182,10 @@ document.getElementById('file-input').addEventListener('change', async (e) => {
         }
         hapticFeedback('notification','success');
 
-        showAlert(`✅ Успешно обработано документов: ${processedCount} из ${totalFiles}`);
+        // Показываем статус только для множественной загрузки
+        if (totalFiles > 1) {
+            showAlert(`✅ Обработано: ${processedCount} из ${totalFiles}`);
+        }
     } else {
         // Если ни один документ не обработан
         resetUI();
@@ -340,6 +351,9 @@ function sendCurrentDocument() {
 }
 
 tg.MainButton.onClick(sendCurrentDocument);
+
+// Обычная кнопка "Отправить в 1С" для браузера
+document.getElementById('send-btn').addEventListener('click', sendCurrentDocument);
 
 // Кнопка добавления товара
 document.getElementById('add-item-btn').addEventListener('click', () => {
