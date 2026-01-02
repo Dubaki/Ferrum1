@@ -384,3 +384,17 @@ document.getElementById('clear-btn').addEventListener('click', () => {
 table.on("cellEdited", () => {
     saveCurrentDocument();
 });
+
+// Функции для modal просмотра фото
+function openImageModal() {
+    const previewImg = document.getElementById('preview-img');
+    const modal = document.getElementById('image-modal');
+    const modalImg = document.getElementById('modal-img');
+
+    modalImg.src = previewImg.src;
+    modal.classList.remove('hidden');
+}
+
+function closeImageModal() {
+    document.getElementById('image-modal').classList.add('hidden');
+}
