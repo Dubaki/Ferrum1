@@ -47,10 +47,12 @@ function hapticFeedback(type, style) {
     }
 }
 
-// Настройка таблицы
+// Настройка таблицы - авто-высота для читаемости
 const table = new Tabulator("#grid-table", {
     layout: "fitColumns",
     responsiveLayout: "collapse",
+    height: "auto",
+    minHeight: 150,
     columns: [
         {title:"Арт.", field:"ItemArticle", editor:"input", widthGrow:1, headerFilter:"input"},
         {title:"Товар", field:"ItemName", editor:"input", widthGrow:3},
@@ -229,10 +231,10 @@ function showDocument(index) {
 
     // Обновляем кнопку отправки
     if (doc.status === 'sent') {
-        tg.MainButton.setText(`✅ Отправлено (${index + 1}/${documents.length})`);
+        tg.MainButton.setText('✅ Отправлено в 1С');
         tg.MainButton.show();
     } else {
-        tg.MainButton.setText(`📤 Отправить документ ${index + 1}/${documents.length}`);
+        tg.MainButton.setText('📤 Отправить в 1С');
         tg.MainButton.show();
     }
 
@@ -354,9 +356,6 @@ function sendCurrentDocument() {
 }
 
 tg.MainButton.onClick(sendCurrentDocument);
-
-// Обычная кнопка "Отправить в 1С" для браузера
-document.getElementById('send-btn').addEventListener('click', sendCurrentDocument);
 
 // Кнопка добавления товара
 document.getElementById('add-item-btn').addEventListener('click', () => {
